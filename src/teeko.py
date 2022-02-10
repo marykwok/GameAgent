@@ -2,63 +2,76 @@ import random
 import copy
 import time
 
+##
+# @file sensors.py
+#
+# @brief Teeko2 game program with and AI that wins against random players given a time 
+# limit of 5 seconds per move. Without this limit the algorithm traverses to a greater
+# depth on the game tree and performs significantly better and can compete with an 
+# intelligent player. 
+#
+# @author Mary Kwok (marykwok), CS540Instructors(University of Wisconsin-Madison)
+
 class Teeko2Player:
-    """ An object representation for an AI game player for the game Teeko2.
+    """! 
+    @author Mary Kwok, CS540Instructors
+    An object representation for an AI game player for the game Teeko2
     """
     board = [[' ' for j in range(5)] for i in range(5)]
     pieces = ['b', 'r']
 
     def __init__(self):
-        """ Initializes a Teeko2Player object by randomly selecting red or black as its
+        """ 
+	@author CS540Instructors
+	Initializes a Teeko2Player object by randomly selecting red or black as its
         piece color.
         """
         self.my_piece = random.choice(self.pieces)
         self.opp = self.pieces[0] if self.my_piece == self.pieces[1] else self.pieces[1]
 
     def make_move(self, state):
-        """ Selects a (row, col) space for the next move. You may assume that whenever
+        """! 
+	@author Mary Kwok
+	Selects a (row, col) space for the next move. You may assume that whenever
         this function is called, it is this player's turn to move.
 
-        Args:
-            state (list of lists): should be the current state of the game as saved in
-                this Teeko2Player object. Note that this is NOT assumed to be a copy of
-                the game state and should NOT be modified within this method (use
-                place_piece() instead). Any modifications (e.g. to generate successors)
-                should be done on a deep copy of the state.
+        @param state The current state of the game as saved in this Teeko2Player object.
+                    Any modifications for the sake of generating successor states should
+                    be made on a deep copy.
 
-                In the "drop phase", the state will contain less than 8 elements which
-                are not ' ' (a single space character).
-
-        Return:
-            move (list): a list of move tuples such that its format is
-                    [(row, col), (source_row, source_col)]
-                where the (row, col) tuple is the location to place a piece and the
-                optional (source_row, source_col) tuple contains the location of the
-                piece the AI plans to relocate (for moves after the drop phase). In
-                the drop phase, this list should contain ONLY THE FIRST tuple.
-
-        Note that without drop phase behavior, the AI will just keep placing new markers
-            and will eventually take over the board. This is not a valid strategy and
-            will earn you no points.
+        @return move A list of move tuples with the format [(dest_row, dest_col), 
+		(source_row, source_col)] where only the first tuple should be passed if
+		the player is still in the drop phase.
         """
 
-        # minimax algorithm to play better
+        # Implementing minimax algortihm
         move = []
-        
-        best = self.max_value(state, 3, True)
+        best = self.max_value(state, 4, True) # Obtians best state
         best_state = best[1]
+        # Extracts move by comparing differences between states
         for r in range(5):
             for c in range(5):
                 if state[r][c] != best_state[r][c]: 
                     if best_state[r][c] == ' ':
                         move.insert(1, (r,c)) # source location
                     elif state[r][c] == ' ':
-                        move.insert(0, (r,c)) # destination 
-
-
+                        move.insert(0, (r,c)) # destination
         return move
 
     def succ(self, move_piece, state):
+        """"! 
+	@author Mary Kwok
+	Takes in a board state and returns the list of possible successors.
+        This function determines whether the player can still add peices which allows
+        a peice to be placed on any empty spot on the board, or if they have already
+        used up their 4 pecies and can only move their current peices .
+        
+	@param state The initial state from which successors are propagatedm
+        @param move_piece The peice being placed which will indicate who the peice
+	belongs to
+	
+	@return successors The list of all possible sucessor states.
+        """
         piece_count = 0
         drop_phase = True
         for r in state:
@@ -87,20 +100,44 @@ class Teeko2Player:
                 for r in range(piece[0]-1, piece[0]+2):
                     for c in range(piece[1]-1, piece[1] +2):
                         if 0<=r<5 and 0<=c<5 and state[r][c] == ' ' :
-                            # spot is within board range, is empty
+                            # spot is within board range and is empty
                             new_state = copy.deepcopy(state)
                             new_state[piece[0]][piece[1]] = ' '
                             new_state[r][c] = move_piece
                             x.append(new_state)
 
-
         return x
 
     def heuristic_game_value(self, state):
+	"""! 
+	@author Mary Kwok
+	
+	Carries out a heuristic evaluation function with an unweighted sum of 
+	win condition checks. For each of the 5 win condition (horizontal, 
+	vertical, left diagonal, right diagonal, and 3x3 corners) the number of
+	peices that reside in that winning configuration would be the feature 
+	score. The score would be negative if the matching peices belonged to the
+	opponent and positive if it belongs to the agent.
+	
+	This method of evaluating the state allows a state with more possibilities
+	and thus is more versatile and has more potential of forming a winning 
+	configuration later on, to be considered. For example two peices side by side
+	would have a lower score than two peices with a gap between them since this
+	both forms a linear configuration and the corner configuration.
+
+	However this method fails to take into account how opponent's peices may block
+	the possibility of actually forming a winnign configuration. This is something
+	that can potentially be added upon the current heuristic to increase it's 
+	strength.
+	
+	@param state The state being evluated
+
+	@return hgv (heuristic game value) A double representing the total evaluation 
+	"""
         #if self.game_value(state) != 0: return self.game_value(state)
         hgv = 0
 
-        # check horizontal 
+        # check horizontal  
         for row in state:
             for i in range(2):
                 for n in range(4):
@@ -134,10 +171,27 @@ class Teeko2Player:
                         if state[n[0]][n[1]] == self.my_piece: hgv+=1 
         return hgv/100
     
+
     def max_value(self, state, depth, nextTurn):
-        if self.game_value(state) != 0:
+        """! 
+	@author Mary Kwok
+	The minimax algorithm is implemented to best step to be taken in a game
+	where both sides play optimally (in this case, according to the strategy infered
+	from the heurisitcs_game_value function) 
+	All game states are propogated recursively evaluated until the listed depth is 
+	reached.  
+	
+	@param state The state of the board in question, as the algorithm progresses
+	deeper, the further propogated states should be passed.
+	@param depth The current depth of on the game tree
+	@param nextTurn Whether it is the agent's turn, true if it is and false otherwise
+	
+	@return The tuple containing (hgv, state, depth)
+	"""
+	if self.game_value(state) != 0:
             return (self.game_value(state), state, depth)
         elif depth == 0:
+
             return (self.heuristic_game_value(state), state, depth)
         elif nextTurn:
             max = (-1, state, 0)
@@ -155,16 +209,13 @@ class Teeko2Player:
             return min
 
     def opponent_move(self, move):
-        """ Validates the opponent's next move against the internal board representation.
-        You don't need to touch this code.
-
-        Args:
-            move (list): a list of move tuples such that its format is
-                    [(row, col), (source_row, source_col)]
-                where the (row, col) tuple is the location to place a piece and the
-                optional (source_row, source_col) tuple contains the location of the
-                piece the AI plans to relocate (for moves after the drop phase). In
-                the drop phase, this list should contain ONLY THE FIRST tuple.
+        """! 
+	@author CS540 Intructors
+	Validates the opponent's next move against the internal board representation.
+	
+	@param move A list of move tuples with the format [(dest_row, dest_col), 
+                (source_row, source_col)] where only the first tuple should be passed if
+                the player is still in the drop phase.
         """
         # validate input
         if len(move) > 1:
@@ -184,26 +235,24 @@ class Teeko2Player:
         self.place_piece(move, self.opp)
 
     def place_piece(self, move, piece):
-        """ Modifies the board representation using the specified move and piece
+        """!  
+        @author CS540 Intructors
+	Modifies the board representation using the specified move and piece
 
-        Args:
-            move (list): a list of move tuples such that its format is
-                    [(row, col), (source_row, source_col)]
-                where the (row, col) tuple is the location to place a piece and the
-                optional (source_row, source_col) tuple contains the location of the
-                piece the AI plans to relocate (for moves after the drop phase). In
-                the drop phase, this list should contain ONLY THE FIRST tuple.
-
-                This argument is assumed to have been validated before this method
-                is called.
-            piece (str): the piece ('b' or 'r') to place on the board
+        @param move A list of move tuples with the format [(dest_row, dest_col), 
+                (source_row, source_col)] where only the first tuple should be passed if
+                the player is still in the drop phase.
+	@param piece (str): the piece ('b' or 'r') to place on the board
         """
         if len(move) > 1:
             self.board[move[1][0]][move[1][1]] = ' '
         self.board[move[0][0]][move[0][1]] = piece
 
     def print_board(self):
-        """ Formatted printing for the board """
+        """! 
+	@author CS540Instructors
+	Formatted printing for the board 
+	"""
         for row in range(len(self.board)):
             line = str(row)+": "
             for cell in self.board[row]:
@@ -212,16 +261,15 @@ class Teeko2Player:
         print("   A B C D E")
 
     def game_value(self, state):
-        """ Checks the current board status for a win condition
+        """! 
+	@author CS540Instructors, Mary Kwok	
+	Checks the current board status for a win condition
 
-        Args:
-        state (list of lists): either the current state of the game as saved in
-            this Teeko2Player object, or a generated successor state.
+        @param state The state being checked for condition
 
-        Returns:
-            int: 1 if this Teeko2Player wins, -1 if the opponent wins, 0 if no winner
+        @return game_value An int that is 1 if this Teeko2Player wins, -1 if the 
+	opponent wins, 0 if no winner
 
-        TODO: complete checks for diagonal and 3x3 square corners wins
         """
         # check horizontal wins
         for row in state:
